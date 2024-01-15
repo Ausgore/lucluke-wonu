@@ -3,6 +3,8 @@ const MongoUser = require("../database/MongoUser");
 const MongoCard = require("../database/MongoCard");
 const { promises: fs } = require("fs");
 const config = require("../config");
+const MongoInventory = require("../database/MongoInventory");
+const humanize = require("humanize-duration");
 
 module.exports = {
 	data: new SlashCommandBuilder()
@@ -16,14 +18,15 @@ module.exports = {
 		const favorite = await mongoUser.getFavorite();
 		if (!favorite) return interaction.reply({ content: "You hadn't set a favorite card to duel with yet.", ephemeral: true });
 
-		const cooldown = await mongo.getCooldown("duel");
+		const cooldown = await mongoUser.getCooldown("duel");
 		if (cooldown > Date.now()) {
-			embed
+			const embed = new EmbedBuilder()
+                .setColor(config.theme)
 				.setTitle("This command is on cooldown!")
 				.setDescription(`**Total cooldown:** ${config.cooldowns.duel / 60000} minutes\n**Time remaining:** ${humanize(cooldown - Date.now(), { delimiter: " and ", round: true }).replace(/\d+/g, n => `\`${n}\``)}`);
 			return interaction.reply({ embeds: [embed], ephemeral: true });
 		}
-		mongo.setCooldown("stream", config.cooldowns.duel);
+		mongoUser.setCooldown("duel", config.cooldowns.duel);
 
 		await interaction.deferReply();
 
@@ -58,7 +61,7 @@ module.exports = {
 			.replace(/{tier}/g, config.tiers[card.tier].emoji);
 
 		const buttons = new ActionRowBuilder().setComponents(
-			new ButtonBuilder().setCustomId("help").setLabel("help him!").setStyle(ButtonStyle.Secondary),
+			new ButtonBuilder().setCustomId("help").setLabel("help them!").setStyle(ButtonStyle.Secondary),
 			new ButtonBuilder().setCustomId("run").setEmoji("1152129877743501346").setStyle(ButtonStyle.Secondary));
 		
 		const embed = new EmbedBuilder()
@@ -76,8 +79,25 @@ module.exports = {
 
 		if (i.customId == "help") {
 			const odds = Math.floor(Math.random() * 100);
-			if (odds <= chance) embed.setColor("Green").setDescription(scenario.win);
-			else embed.setColor("Orange").setDescription(scenario.lose);
+			// Win
+			if (odds <= chance) {
+				await new MongoInventory(interaction.user.id).add(card._id);
+				embed.setColor("Green").setDescription(`${scenario.win} (+1 **${card.name}**)`);
+			}
+			// Lose
+			else {
+				let lostCoins = 300;
+				if (card.tier == "Common") lostCoins = 40;
+				else if (card.tier == "Uncommon") lostCoins = 60;
+				else if (card.tier == "Super") lostCoins = 80;
+				else if (card.tier == "Rare") lostCoins = 100;
+
+                const data = await mongoUser.get();
+                if (lostCoins > data.coins) lostCoins = data.coins;
+
+				await mongoUser.addCoins(lostCoins);
+				embed.setColor("Red").setDescription(scenario.lose);
+			}
 			interaction.editReply({ embeds: [embed], components: [] });
 		}
 		else if (i.customId == "run") {

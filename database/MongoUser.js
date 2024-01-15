@@ -57,6 +57,14 @@ module.exports = class MongoUser {
 		const data = await model.findOne({ userId: this.userId }).populate("favorite");
 		return (await data.populate("favorite.card")).favorite;
 	}
+
+	/**
+	 * @param {number} coins 
+	 */
+	async addCoins(coins) {
+		const data = await this.model.findOneAndUpdate({ userId: this.userId }, { $inc: { coins }});
+		return data;
+	}
     
     /**
 	 * @param {number} xp 

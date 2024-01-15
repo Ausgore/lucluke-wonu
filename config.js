@@ -1,6 +1,6 @@
 module.exports = {
 	theme: "#9966cc",
-	token: "",
+	token: "MTE3MTc5MzM4NDkxOTI3NzYxOA.G9reTM._mZIg8QtYzxSdk-tAtrSkAvHkY1wKS49shmBNY",
 	connection: "mongodb+srv://wonugamelounge:wonulucnmyles025@wonu.kxc6s4b.mongodb.net/",
 	// connection: "mongodb+srv://glenn:glnn3444@database.nyy8c.mongodb.net/",
 	cooldowns: {
